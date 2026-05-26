@@ -12,7 +12,7 @@ export class GameManager extends cc.Component {
         physicsManager.gravity = cc.v2(0, -640);
 
         // 3. 修正：Cocos 2.4.8 正確的開啟紅框寫法
-        physicsManager.debugDrawFlags = cc.PhysicsManager.DrawBits.e_shapeBit;
+        // physicsManager.debugDrawFlags = cc.PhysicsManager.DrawBits.e_shapeBit;
     }
 
     start() {

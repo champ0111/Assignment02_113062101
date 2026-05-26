@@ -4,7 +4,7 @@ const {ccclass, property} = cc._decorator;
 export class Enemy extends cc.Component {
 
     @property(cc.Float)
-    moveSpeed: number = 100; // 怪物的移動速度
+    moveSpeed: number = 30; // 怪物的移動速度
 
     private rb: cc.RigidBody = null;
     private moveDirection: number = -1; // -1 代表向左，1 代表向右
