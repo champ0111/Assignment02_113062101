@@ -1,4 +1,5 @@
 const {ccclass, property} = cc._decorator;
+import { GameManager } from "./GameManager";
 
 @ccclass
 export class UIManager extends cc.Component {
@@ -26,6 +27,13 @@ export class UIManager extends cc.Component {
         this.schedule(this.countdown, 1);
     }
 
+    public updateLifeDisplay() {
+        if (this.lifeLabel) {
+            // 直接讀取 GameManager 裡面的靜態變數
+            this.lifeLabel.string = "LIFE x " + GameManager.lives;
+        }
+    }
+
     // 🕒 計時器倒數邏輯
     countdown() {
         if (!this.isTimerRunning) return;
@@ -49,6 +57,7 @@ export class UIManager extends cc.Component {
         }
     }
 
+
     // 統一加分接口
     public addScore(amount: number) {
         this.score += amount;
@@ -61,6 +70,8 @@ export class UIManager extends cc.Component {
         this.coinLabel.string = "COINS: " + String(this.coins).padStart(2, '0');
         this.addScore(500); // 這裡統一設定吃到金幣加 500
     }
+
+
 
     // ❤️ 設定生命值
     public setLives(amount: number) {
@@ -83,7 +94,7 @@ export class UIManager extends cc.Component {
     updateUI() {
         if (this.scoreLabel) this.scoreLabel.string = "SCORE: 000000";
         if (this.coinLabel) this.coinLabel.string = "COINS: 00";
-        if (this.lifeLabel) this.lifeLabel.string = "LIFE x " + this.lives;
+        this.updateLifeDisplay();
         if (this.timerLabel) this.timerLabel.string = "TIME: " + this.timeLeft;
     }
 }

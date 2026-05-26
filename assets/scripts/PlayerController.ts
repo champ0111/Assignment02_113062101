@@ -1,11 +1,31 @@
 const {ccclass, property} = cc._decorator;
 import { QuestionBlock } from "./QuestionBlock";
-import { UIManager } from "./UIManager"; // 💡 這一行非常重要！
+import { UIManager } from "./UIManager";
+import { AudioManager } from "./AudioManager";
+import { GameManager } from "./GameManager";
 
 @ccclass
 export class PlayerController extends cc.Component {
 
-    // 【修正】不需要任何大圖或圖集屬性了，格子留空也沒關係！
+    // 💡 新增的音效屬性 (請在編輯器中將對應的音效檔案拖入)
+    // 在腳本開頭加入對 SpriteFrame 的屬性定義
+    @property(cc.SpriteFrame)
+    deadSpriteFrame: cc.SpriteFrame = null;
+
+    @property(cc.AudioClip)
+    stompClip: cc.AudioClip = null;
+
+    @property(cc.AudioClip)
+    jumpClip: cc.AudioClip = null;
+
+    @property(cc.AudioClip)
+    powerUpClip: cc.AudioClip = null;
+
+    @property(cc.AudioClip)
+    powerDownClip: cc.AudioClip = null;
+
+    @property(cc.AudioClip)
+    deathClip: cc.AudioClip = null;
 
     @property(cc.Node)
     respawnPoint: cc.Node = null; 
@@ -24,8 +44,8 @@ export class PlayerController extends cc.Component {
     private isGrounded: boolean = false; 
     private isDead: boolean = false; 
 
-    // 💡 記錄目前是不是大馬力歐狀態
     private isBig: boolean = false;
+    private isInvincible: boolean = false;
 
     onLoad() {
         this.rb = this.getComponent(cc.RigidBody);
@@ -80,96 +100,117 @@ export class PlayerController extends cc.Component {
             this.rb.linearVelocity = cc.v2(this.rb.linearVelocity.x, this.jumpForce);
             this.isGrounded = false; 
             this.anim.play("player_jump");
+            // 🔊 播放跳躍音效
+            if (AudioManager.instance && this.jumpClip) AudioManager.instance.playSFX(this.jumpClip);
         }
     }
 
     onBeginContact(contact: cc.PhysicsContact, selfCollider: cc.PhysicsCollider, otherCollider: cc.PhysicsCollider) {
         if (this.isDead) return; 
 
-        // 1. 掉進懸崖（Tag 99）
         if (otherCollider.tag === 99) {
             this.triggerDeath();
             return;
         }
 
-        // 2. 腳底 (Tag 20) 踩東西與踩怪
         if (selfCollider.tag === 20) {
             if (otherCollider.node.name === "Enemy") {
-                if (this.node.y > otherCollider.node.y + 10) {
+                let playerBottom = this.node.convertToWorldSpaceAR(cc.v2(0, -this.node.height * this.node.scaleY / 2)).y;
+                let enemyTop = otherCollider.node.convertToWorldSpaceAR(cc.v2(0, otherCollider.node.height * otherCollider.node.scaleY / 2)).y;
+
+                if (playerBottom > enemyTop - 15) { 
                     this.rb.linearVelocity = cc.v2(this.rb.linearVelocity.x, this.jumpForce * 0.8);
-                    otherCollider.node.destroy(); 
+                    
+                    let enemyScript = otherCollider.node.getComponent("Enemy");
+                    if (enemyScript) {
+                        enemyScript.die();
+                        // 🔊 播放踩怪音效
+                        if (AudioManager.instance && this.stompClip) AudioManager.instance.playSFX(this.stompClip);
+                    } else {
+                        otherCollider.node.destroy();
+                    }
 
-                    // 🎯 踩死怪物：加 2000 分
                     if (UIManager.instance) UIManager.instance.addScore(2000);
-
-                    cc.log("成功踩死怪物！");
                     return; 
+                } else {
+                    this.handleDamage();
+                    return;
                 }
             } else {
                 this.isGrounded = true; 
             }
-        } 
+        }
 
-        // 3. 身體撞到怪物
         if (otherCollider.node.name === "Enemy") {
-            // 💡 如果是大馬力歐，獲得一次免死金牌，縮小回去！
             if (this.isBig) {
-                cc.log("大馬力歐受傷，縮小回小馬力歐！");
                 this.isBig = false;
-
-                // 物理碰撞箱縮小回原樣（除以 1.5）
                 let colliders = this.getComponents(cc.PhysicsBoxCollider);
                 colliders.forEach(c => {
                     c.size.width /= 1.5;
                     c.size.height /= 1.5;
                     c.apply();
                 });
-                this.jumpForce = 500; // 恢復原本跳躍力
-                
-                // 💡 這裡不刪除怪物，給馬力歐一瞬間無敵穿過去的時間（由物理層直接推開或穿透）
+                this.jumpForce = 500;
                 contact.disabled = true; 
                 return;
             } else {
-                cc.log("判定為受傷！死掉！");
                 this.triggerDeath();
                 return;
             }
         }
 
-        // 4. 頭頂撞問號方塊 (Tag 10)
         if (otherCollider.tag === 10 && this.rb.linearVelocity.y > 0) {
             let block = otherCollider.getComponent(QuestionBlock);
-            if (block) {
-                block.onHit(); 
-            }
+            if (block) block.onHit(); 
         }
 
-        // 5. 吃到變大蘑菇（Tag 6）
         if (otherCollider.tag === 6) {
-            cc.log("吃到蘑菇！瑪利歐變大！");
             otherCollider.node.destroy();
-
-            // 🎯 吃蘑菇：加 1000 分 (額外獎勵)
+            // 🔊 播放吃蘑菇音效
+            if (AudioManager.instance && this.powerUpClip) AudioManager.instance.playSFX(this.powerUpClip);
             if (UIManager.instance) UIManager.instance.addScore(1000);
             
             if (!this.isBig) {
                 this.isBig = true;
-
-                // 物理碰撞箱手動調大
                 let colliders = this.getComponents(cc.PhysicsBoxCollider);
                 colliders.forEach(c => {
                     c.size.width *= 1.5;
                     c.size.height *= 1.5;
                     c.apply();
                 });
-
-                this.jumpForce = 550; // 變大後跳得更高一點
+                this.jumpForce = 550;
             }
         }
     }
 
     triggerDeath() {
+        if (this.isDead) return; // 防止重複觸發死亡邏輯
         this.isDead = true; 
+
+        this.node.zIndex = 999;
+
+        // --- 新增：死亡圖片與動畫 ---
+        // 1. 替換死亡圖片
+        let sprite = this.getComponent(cc.Sprite);
+        if (sprite && this.deadSpriteFrame) {
+            sprite.spriteFrame = this.deadSpriteFrame;
+        }
+        // 2. 死亡跳躍動畫 (先跳起，再快速掉下去)
+        cc.tween(this.node)
+        .by(0.4, { position: cc.v3(0, 150, 0) }, { easing: 'sineOut' })
+        .by(0.6, { position: cc.v3(0, -500, 0) }, { easing: 'sineIn' })
+        .start();
+        // ---------------------------
+
+        // 1. 🔊 暫停 BGM 並播放死亡音效
+        if (AudioManager.instance) {
+            AudioManager.instance.pauseBGM(); // 關掉 BGM
+            if (this.deathClip) {
+                AudioManager.instance.playSFX(this.deathClip); // 播放音效
+            }
+        }
+        
+        // 2. 玩家狀態處理
         this.isGrounded = false;
         this.leftDown = false;
         this.rightDown = false;
@@ -177,13 +218,56 @@ export class PlayerController extends cc.Component {
         if (this.rb) this.rb.linearVelocity = cc.v2(0, 0);
         if (this.anim) this.anim.stop(); 
 
+        // 3. 關閉碰撞
         let colliders = this.getComponents(cc.PhysicsCollider);
         colliders.forEach(c => c.enabled = false);
 
+        // 呼叫扣血，並取得是否 Game Over 的結果
+        let isGameOver = GameManager.decreaseLife();
+
+        // 4. 重啟場景
         this.scheduleOnce(() => {
-            let currentSceneName = cc.director.getScene().name;
-            cc.director.loadScene(currentSceneName);
-        }, 0.5); 
+            if (isGameOver) {
+                cc.director.loadScene("GameOver");
+                // 強制停止所有動作與排程
+                cc.director.getScheduler().unscheduleAllForTarget(this);
+            } else {
+                cc.director.loadScene("Level1");
+            }
+        }, 3.0); 
+    }
+
+    public handleDamage() {
+        if (this.isInvincible) return; 
+
+        if (this.isBig) {
+            this.isBig = false;
+            this.isInvincible = true; 
+            // 🔊 播放變小音效
+            if (AudioManager.instance && this.powerDownClip) AudioManager.instance.playSFX(this.powerDownClip);
+
+            this.rb.enabled = false; 
+            this.scheduleOnce(() => { this.rb.enabled = true; }, 0.1);
+
+            let colliders = this.getComponents(cc.PhysicsBoxCollider);
+            colliders.forEach(c => {
+                c.size.width /= 1.5;
+                c.size.height /= 1.5;
+                c.apply();
+            });
+            this.jumpForce = 500;
+            
+            this.node.opacity = 150;
+            cc.tween(this.node)
+                .blink(2, 10) 
+                .call(() => {
+                    this.node.opacity = 255;
+                    this.isInvincible = false; 
+                })
+                .start();
+        } else {
+            this.triggerDeath();
+        }
     }
 
     onEndContact(contact: cc.PhysicsContact, selfCollider: cc.PhysicsCollider, otherCollider: cc.PhysicsCollider) {
@@ -194,30 +278,22 @@ export class PlayerController extends cc.Component {
 
     update(dt: number) {
         if (this.isDead) return; 
-
-        // 💡 根據目前是不是大馬力歐，決定基礎的 scale 大小（大的是 1.5，小的是 1.0）
-        let baseScale = this.isBig ? 1.3 : 1.0;
-
+        let baseScale = this.isBig ? 1.4 : 1.0;
         let targetSpeedX = 0;
         if (this.leftDown) {
             targetSpeedX = -this.moveSpeed;
-            this.node.scaleX = -baseScale; // 往左走，乘上放大倍率
+            this.node.scaleX = -baseScale;
             this.node.scaleY = baseScale;
         } else if (this.rightDown) {
             targetSpeedX = this.moveSpeed;
-            this.node.scaleX = baseScale;  // 往右走，乘上放大倍率
+            this.node.scaleX = baseScale;
             this.node.scaleY = baseScale;
         } else {
-            // 沒按按鍵時，也要維持目前變大或縮小的 Y 軸比例
             this.node.scaleY = baseScale;
-            // X 軸要保留原本面向左還是面向右的正負號
             let currentDir = this.node.scaleX > 0 ? 1 : -1;
             this.node.scaleX = currentDir * baseScale;
         }
-
         this.rb.linearVelocity = cc.v2(targetSpeedX, this.rb.linearVelocity.y);
-
-        // 動畫播放維持你原本的完美寫法
         if (this.isGrounded) {
             if (targetSpeedX !== 0) {
                 let walkState = this.anim.getAnimationState("player_walk");

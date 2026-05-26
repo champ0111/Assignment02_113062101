@@ -1,8 +1,12 @@
 const {ccclass, property} = cc._decorator;
 import { UIManager } from "./UIManager"; // 💡 這一行非常重要！
+import { AudioManager } from "./AudioManager";
 
 @ccclass
 export class Coin extends cc.Component {
+
+    @property(cc.AudioClip)
+    coinClip: cc.AudioClip = null;
 
     @property(cc.Integer)
     scoreValue: number = 100;
@@ -16,6 +20,10 @@ export class Coin extends cc.Component {
             this.isCollected = true;
             
             cc.log("🪙 碰撞成功！準備通知 UI 加分");
+            
+            if (AudioManager.instance) {
+                AudioManager.instance.playSFX(this.coinClip);
+            }
 
             // 2. 💡 用 instance 直接叫 UI 更新，完全不怕相機和層級怎麼移
             if (UIManager.instance) {

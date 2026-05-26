@@ -1,6 +1,7 @@
 const {ccclass, property} = cc._decorator;
 import { Mushroom } from "./Mushroom"; 
 import { UIManager } from "./UIManager"; // 💡 這一行非常重要！
+import { AudioManager } from "./AudioManager";
 
 enum ItemType {
     COIN,
@@ -22,10 +23,22 @@ export class QuestionBlock extends cc.Component {
     @property(cc.SpriteFrame)
     emptyBlockSprite: cc.SpriteFrame = null; 
 
+    @property(cc.AudioClip)
+    coinHitClip: cc.AudioClip = null;
+
+    @property(cc.AudioClip)
+    mushroomSpawnClip: cc.AudioClip = null;
+
     private isTriggered: boolean = false; 
 
     public onHit() {
         if (this.isTriggered) return; 
+
+        // 3. 觸發時直接播放音效
+        if (AudioManager.instance && this.coinHitClip) {
+            AudioManager.instance.playSFX(this.coinHitClip);
+        }
+
         this.isTriggered = true;
 
         let sprite = this.getComponent(cc.Sprite);
@@ -72,6 +85,11 @@ export class QuestionBlock extends cc.Component {
         } 
         // 【狀況 B：蹦出變大蘑菇】
         else if (this.itemType === ItemType.MUSHROOM && this.mushroomPrefab) {
+            // 💡 播放蘑菇出現音效
+            if (AudioManager.instance && this.mushroomSpawnClip) {
+                AudioManager.instance.playSFX(this.mushroomSpawnClip);
+            }
+
             let mushroom = cc.instantiate(this.mushroomPrefab);
             
             // 1. 強制放到 Canvas 底下，徹底斷絕跟怪物的父節點階層關係
