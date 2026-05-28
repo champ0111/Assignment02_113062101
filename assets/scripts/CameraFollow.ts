@@ -15,6 +15,9 @@ export class CameraFollow extends cc.Component {
     // @property(cc.Float)
     // maxX: number = 2000;
 
+    @property(cc.Float)
+    minX: number = 0; // 在編輯器設定你地圖的最左邊界
+
     lateUpdate(dt: number) {
         // 良好的習慣：在 lateUpdate 更新相機位置，確保玩家動完相機才跟上，畫面不會抖動
         if (!this.playerNode) return;
@@ -24,6 +27,8 @@ export class CameraFollow extends cc.Component {
         
         // 平滑內插（Lerp）計算新位置
         let currentX = cc.misc.lerp(this.node.x, targetX, this.smoothSpeed);
+
+        currentX = Math.max(currentX, this.minX)
 
         // 更新相機座標
         this.node.x = currentX;

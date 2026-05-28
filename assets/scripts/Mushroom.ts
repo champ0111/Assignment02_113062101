@@ -34,10 +34,11 @@ export class Mushroom extends cc.Component {
 
     onBeginContact(contact: cc.PhysicsContact, selfCollider: cc.PhysicsCollider, otherCollider: cc.PhysicsCollider) {
         let otherName = otherCollider.node.name;
+        let otherTag = otherCollider.tag;
 
         // 【問題二修正：徹底忽略怪物】
         // 如果撞到怪物，直接叫物理引擎「取消這次碰撞」，這樣兩者就會像幽靈一樣直接穿過去！
-        if (otherName === "Enemy") {
+        if (otherName === "Enemy" || otherTag == 87) {
             contact.disabled = true; 
             return; // 結束判定，不跑下面的轉向邏輯
         }

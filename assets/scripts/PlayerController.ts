@@ -30,6 +30,9 @@ export class PlayerController extends cc.Component {
     @property(cc.Node)
     respawnPoint: cc.Node = null; 
 
+    @property(cc.AudioClip)
+    kickClip: cc.AudioClip = null;
+
     @property(cc.Float)
     moveSpeed: number = 130; 
 
@@ -113,8 +116,68 @@ export class PlayerController extends cc.Component {
             return;
         }
 
+        if (otherCollider.tag === 67) {
+            this.handleDamage();
+            return;
+        }
+
+        if (otherCollider.tag === 87) {
+            let turtle = otherCollider.getComponent("TurtleController");
+            if (turtle) {
+                // 1. 計算高度：檢查玩家腳底是否在烏龜上方
+                let playerBottom = this.node.convertToWorldSpaceAR(cc.v2(0, -this.node.height * this.node.scaleY / 2)).y;
+                let turtleTop = otherCollider.node.convertToWorldSpaceAR(cc.v2(0, otherCollider.node.height * otherCollider.node.scaleY / 2)).y;
+
+                // 2. 【核心邏輯】：只要是從上方踩，永遠觸發互動，不扣血
+                // 這裡把條件放寬：不管 state 是 0, 1, 2，只要踩到就是安全互動
+                if (playerBottom > turtleTop - 15) {
+                    turtle.onInteract(this.node);
+                    // 彈跳效果
+                    this.rb.linearVelocity = cc.v2(this.rb.linearVelocity.x, this.jumpForce * 0.8);
+                    if (AudioManager.instance && this.stompClip) AudioManager.instance.playSFX(this.stompClip);
+                
+                    if (UIManager.instance) {
+                        UIManager.instance.addScore(500); // 這裡設定你想要加的分數，例如 500
+                    }
+                } 
+                else {
+                    // 沒踩到，這是側面碰撞
+                    let state = turtle.getCurrentState();
+                    
+                    if (state === 0) { 
+                        // 走路狀態側面撞到 -> 受傷
+                        this.handleDamage();
+                    } 
+                    else if (state === 1) { 
+                        // 靜止龜殼側面撞到 -> 踢它 (互動)
+                        turtle.onInteract(this.node); 
+
+                        // 🎯 這裡加入踢擊音效
+                        if (AudioManager.instance && this.kickClip) {
+                            AudioManager.instance.playSFX(this.kickClip);
+                        }
+                    } 
+                    else if (state === 2) { 
+                        // 滑行狀態側面撞到 -> 受傷
+                        this.handleDamage();
+                    }
+                }
+            }
+            return;
+        }
+
         if (selfCollider.tag === 20) {
+            // 取得接觸點的法線向量
+            let worldManifold = contact.getWorldManifold();
+            let normal = worldManifold.normal; 
+
+            // 如果 normal.y > 0.5，代表碰撞面在玩家下方（地板）
+            if (normal.y > 0.5) {
+                this.isGrounded = true;
+            }
+
             if (otherCollider.node.name === "Enemy") {
+                
                 let playerBottom = this.node.convertToWorldSpaceAR(cc.v2(0, -this.node.height * this.node.scaleY / 2)).y;
                 let enemyTop = otherCollider.node.convertToWorldSpaceAR(cc.v2(0, otherCollider.node.height * otherCollider.node.scaleY / 2)).y;
 
@@ -272,7 +335,15 @@ export class PlayerController extends cc.Component {
 
     onEndContact(contact: cc.PhysicsContact, selfCollider: cc.PhysicsCollider, otherCollider: cc.PhysicsCollider) {
         if (selfCollider.tag === 20) {
-            this.isGrounded = false;
+            // 只有當離開的是「地板」才設為 false
+            // 透過法線判斷確保只處理地板碰撞的離開
+            let worldManifold = contact.getWorldManifold();
+            let normal = worldManifold.normal;
+            
+            // 只有法線是向上的碰撞才算地板，離開地板時我們才將 isGrounded 設為 false
+            if (normal.y > 0.5) {
+                this.isGrounded = false;
+            }
         }
     }
 
