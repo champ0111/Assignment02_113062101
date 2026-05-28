@@ -232,7 +232,7 @@ export class PlayerController extends cc.Component {
                 // 強制停止所有動作與排程
                 cc.director.getScheduler().unscheduleAllForTarget(this);
             } else {
-                cc.director.loadScene("Level1");
+                cc.director.loadScene("GameStart");
             }
         }, 3.0); 
     }

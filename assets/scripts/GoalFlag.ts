@@ -31,7 +31,65 @@ export class GoalFlag extends cc.Component {
 
             // 3. 延遲切換場景，讓音效播完
             this.scheduleOnce(() => {
-                cc.director.loadScene("Level1"); // 換成你的下一關場景名稱
+                // 引入 UIManager
+                let UIManager = cc.find("Canvas/UIManager") ? cc.find("Canvas/UIManager").getComponent("UIManager") : null;
+                
+                // ==========================================
+                // 🔥 [絕對執行版] 移到 if 外面！不管有沒有 UIManager 都要強行抓數據並噴入 Firebase
+                // ==========================================
+                try {
+                    let finalCoins = 0;
+                    let finalScore = 0;
+                    let finalLives = 3;
+
+                    if (UIManager) {
+                        // 如果有 UIManager，嘗試讀取它的數據
+                        finalCoins = UIManager.coinCount !== undefined ? UIManager.coinCount : (UIManager.coins !== undefined ? UIManager.coins : 0);
+                        finalScore = UIManager.scoreCount !== undefined ? UIManager.scoreCount : (UIManager.score !== undefined ? UIManager.score : 0);
+                        finalLives = UIManager.livesCount !== undefined ? UIManager.livesCount : (UIManager.lives !== undefined ? UIManager.lives : 3);
+                    } else {
+                        // 💡 抓不到 UIManager 時的備案：直接去常駐的 GameManager 類別撈取靜態變數
+                        let gmClass = cc.js.getClassByName("GameManager") as any;
+                        if (gmClass) {
+                            finalCoins = gmClass.coins || 0;
+                            finalScore = gmClass.score || 0;
+                            finalLives = gmClass.lives || 3;
+                        }
+                    }
+
+                    // 同步給常駐節點的 class 靜態變數，防止切場景後數值歸零
+                    let gmClass = cc.js.getClassByName("GameManager") as any;
+                    if (gmClass) {
+                        gmClass.coins = finalCoins;
+                        gmClass.score = finalScore;
+                        gmClass.lives = finalLives;
+                    }
+
+                    // 強制射進 Firebase
+                    // @ts-ignore
+                    const user = (typeof firebase !== 'undefined') ? firebase.auth().currentUser : null;
+                    if (user) {
+                        cc.log(`【過關絕對強存】正在將 金幣:${finalCoins}, 分數:${finalScore} 噴入 Firebase...`);
+                        // @ts-ignore
+                        firebase.database().ref('users/' + user.uid).update({
+                            score: finalScore,
+                            coins: finalCoins,
+                            lives: finalLives
+                        });
+                    }
+                } catch (e) {
+                    cc.error("【過關強存防崩潰鎖】拋出錯誤，但放行原本邏輯:", e);
+                }
+                // ==========================================
+
+                // 以下原本的邏輯原封不動
+                if (UIManager) {
+                    cc.log("【過關】通知 UIManager 安全存檔並切換場景...");
+                    UIManager.saveAndLoadScene("LevelSelect");
+                } else {
+                    cc.warn("【過關】找不到 UIManager，使用強制跳轉備案");
+                    cc.director.loadScene("LevelSelect");
+                }
             }, 3.0); // 等待 3 秒
         }
     }

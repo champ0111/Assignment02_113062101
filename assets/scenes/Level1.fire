@@ -569,7 +569,7 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 193.4,
+      "width": 191.15,
       "height": 50.4
     },
     "_anchorPoint": {
@@ -581,7 +581,7 @@
       "__type__": "TypedArray",
       "ctor": "Float64Array",
       "array": [
-        -371.646,
+        -363.336,
         173.225,
         0,
         0,
@@ -621,8 +621,8 @@
     ],
     "_srcBlendFactor": 770,
     "_dstBlendFactor": 771,
-    "_string": "COINS: 00",
-    "_N$string": "COINS: 00",
+    "_string": "COINS x 0",
+    "_N$string": "COINS x 0",
     "_fontSize": 40,
     "_lineHeight": 40,
     "_enableWrapText": true,
@@ -1423,8 +1423,8 @@
       "__type__": "TypedArray",
       "ctor": "Float64Array",
       "array": [
-        -518.447,
-        49.218999999999994,
+        -442.066,
+        49.219,
         0,
         0,
         0,
@@ -2390,7 +2390,7 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 800,
+      "width": 1280,
       "height": 480
     },
     "_anchorPoint": {
@@ -2402,8 +2402,8 @@
       "__type__": "TypedArray",
       "ctor": "Float64Array",
       "array": [
-        321.54499999999996,
-        142.502,
+        385.288,
+        141.042,
         0,
         0,
         0,
@@ -2452,7 +2452,7 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 800,
+      "width": 1280,
       "height": 480
     },
     "_anchorPoint": {

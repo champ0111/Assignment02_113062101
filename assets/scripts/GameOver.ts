@@ -24,7 +24,7 @@ export default class GameOverController extends cc.Component {
         this.scheduleOnce(() => {
             // 重置生命值，準備開始新的一局
             GameManager.lives = 3; 
-            cc.director.loadScene("Level1");
+            cc.director.loadScene("LevelSelect");
         }, 5.0);
     }
 }
